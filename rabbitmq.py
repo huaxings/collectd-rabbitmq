@@ -6,6 +6,7 @@ import urllib2
 import urllib
 import json
 import re
+import base64
 
 RABBIT_API_URL = "http://{host}:{port}/api/"
 
@@ -85,14 +86,19 @@ def get_info(url):
     '''
     return json object from url
     '''
+    request = urllib2.Request(url)
+    credential = base64.encodestring("%s:%s" % (PLUGIN_CONFIG['username'], PLUGIN_CONFIG['password'])).replace('\n', '')
+    request.add_header("Authorization", "Basic %s" % credential)
 
     try:
-        info = urllib2.urlopen(url)
+        info = urllib2.urlopen(request)
     except urllib2.HTTPError as http_error:
-        collectd.error("Error: %s" % (http_error))
+        collectd.info("Error: %s" % (http_error))
+#        collectd.error("Error: %s" % (http_error))
         return None
     except urllib2.URLError as url_error:
-        collectd.error("Error: %s" % (url_error))
+        collectd.info("Error: %s" % (url_error))
+#        collectd.error("Error: %s" % (url_error))
         return None
     return json.load(info)
 
@@ -207,14 +213,6 @@ def read(input_data=None):
     collectd.debug("Reading data with input = %s" % (input_data))
     base_url = RABBIT_API_URL.format(host=PLUGIN_CONFIG['host'],
                                      port=PLUGIN_CONFIG['port'])
-
-    auth_handler = urllib2.HTTPBasicAuthHandler()
-    auth_handler.add_password(realm=PLUGIN_CONFIG['realm'],
-                              uri=base_url,
-                              user=PLUGIN_CONFIG['username'],
-                              passwd=PLUGIN_CONFIG['password'])
-    opener = urllib2.build_opener(auth_handler)
-    urllib2.install_opener(opener)
 
     #First get all the nodes
     for node in get_info("%s/nodes" % (base_url)):
